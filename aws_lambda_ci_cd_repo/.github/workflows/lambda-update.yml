@@ -1,0 +1,30 @@
+name: Lambda Function Update
+
+on:
+  workflow_run:
+    workflows: ["Docker Build and Push"]
+    types: [completed]
+
+env:
+  FUNCTION_NAME: my-container-lambda
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: lambda-container-repo
+
+jobs:
+  update-lambda:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: arn:aws:iam::<account_id>:role/<github_oidc_role>
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get AWS Account ID
+        id: aws
+        run: echo "ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)" >> $GITHUB_ENV
+
+      - name: Update Lambda
+        run: |
+          aws lambda update-function-code             --function-name $FUNCTION_NAME             --image-uri $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY:latest
